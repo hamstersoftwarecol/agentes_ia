@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sitio de ejemplo — prueba del widget</title>
+    <style>
+      body { font: 16px/1.6 Georgia, serif; max-width: 42rem; margin: 3rem auto; padding: 0 1rem; color: #222; background: #fff8e7; }
+      h1 { font-size: 1.6rem; } code { background: #eee; padding: 0 .3em; }
+      button { padding: .5rem 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Barbería de ejemplo</h1>
+    <p>
+      Esta página simula el sitio web de un cliente: está en un <b>origen distinto</b> al del panel, con sus propios
+      estilos (fíjate en la tipografía) y sin cookies compartidas. Si el chat aparece y responde, el widget
+      funciona en un sitio de terceros.
+    </p>
+    <p>Origen de esta página: <code id="origin"></code></p>
+    <p><button id="open" type="button">Abrir el chat desde un botón propio</button></p>
+
+    <script>
+      // Uso: http://localhost:9000/widget-demo.html?agent=ag_XXXXXXXXXX[&host=http://localhost:3000]
+      const params = new URLSearchParams(location.search);
+      const agent = params.get("agent");
+      const host = params.get("host") || "http://localhost:3000";
+      document.getElementById("origin").textContent = location.origin;
+
+      if (agent) {
+        const s = document.createElement("script");
+        s.src = host + "/widget.js";
+        s.async = true;
+        s.dataset.agent = agent;
+        document.body.appendChild(s);
+      } else {
+        document.body.insertAdjacentHTML("beforeend", "<p><b>Falta ?agent=ag_…</b> en la URL.</p>");
+      }
+      document.getElementById("open").addEventListener("click", () => window.HamsterWidget?.open());
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+import type { Metadata } from "next";
+import { UsageView } from "@/components/admin/views";
+
+export const metadata: Metadata = { title: "Plataforma · Uso" };
+
+// Contenido detrás de la sesión (cookie), que solo se lee en el cliente.
+export const instant = false;
+
+export default function AdminUsageViewPage() {
+  return <UsageView />;
+}
