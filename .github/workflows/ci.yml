@@ -1,0 +1,113 @@
+name: CI
+
+# Lo mismo que se corre en local antes de dar un sprint por terminado (ver README → Tests).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Un push nuevo a la misma rama o PR cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API · Pint + Pest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: api
+
+    # Mismo entorno que fija phpunit.xml: 127.0.0.1:5433, base hamster_test, usuario hamster sin contraseña.
+    # La imagen trae pgvector (≥ 0.8: el RAG usa hnsw.iterative_scan) y el usuario inicial es superusuario,
+    # necesario para CREATE EXTENSION vector en las migraciones.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: hamster
+          POSTGRES_DB: hamster_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U hamster -d hamster_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pgsql, mbstring, intl, zip, gd, bcmath, fileinfo, curl, sodium
+          coverage: none
+
+      - name: Caché de Composer
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('api/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Instalar dependencias
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Preparar .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Estilo (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Pruebas (Pest)
+        run: php artisan test
+
+  web:
+    name: Web · tsc + ESLint + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # LayoutProps (y los tipos de rutas) los genera Next: en una máquina limpia no existen hasta el build,
+      # y tsc fallaría con «Cannot find name 'LayoutProps'».
+      - name: Generar tipos de rutas
+        run: npx next typegen
+
+      - name: Tipos (tsc)
+        run: npx tsc --noEmit
+
+      - name: Lint (ESLint)
+        run: npx eslint src
+
+      # next/font descarga Geist de Google Fonts al compilar: necesita red (los runners de GitHub la tienen).
+      - name: Build
+        run: npm run build

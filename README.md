@@ -1,5 +1,7 @@
 # Hamster AI Agents
 
+[![CI](https://github.com/hamstersoftwarecol/agentesiaHamstersoftware/actions/workflows/ci.yml/badge.svg)](https://github.com/hamstersoftwarecol/agentesiaHamstersoftware/actions/workflows/ci.yml)
+
 SaaS para que una empresa cree agentes de IA con su propia información, los instale en su sitio web,
 capture leads e intervenga en las conversaciones. Producto de Hamster Software.
 
@@ -56,9 +58,16 @@ ahí aparece el enlace de verificación y el de recuperación de contraseña.
 ## Tests
 
 ```bash
-cd api && php artisan test       # usa la base hamster_test
-cd web && npx tsc --noEmit && npx eslint src && npm run build
+cd api && vendor/bin/pint --test && php artisan test   # usa la base hamster_test
+cd web && npx next typegen && npx tsc --noEmit && npx eslint src && npm run build
 ```
+
+`next typegen` genera los tipos de rutas (`LayoutProps`…); en un clon recién hecho hace falta antes de `tsc`.
+
+GitHub Actions corre exactamente eso en cada pull request y en cada push a `main`
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): un job para la API (PHP 8.4 con Postgres + pgvector) y otro para el web (Node 22).
+Para que un PR no se pueda fusionar con el CI en rojo, actívalo como requisito en
+Settings → Branches → Branch protection rules (esa regla se configura en GitHub, no en el repositorio).
 
 ## Widget en un sitio web
 
